@@ -1,18 +1,17 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.shortcuts import get_object_or_404
-from django.db.models import Q
 from .models import NodeTree, NodeTreeName
-from .serializers import NodeSerializer, APIResponseSerializer
+from .serializers import NodeSerializer
 from .pagination import CustomPageNumberPagination
-from typing import Dict, Any, Optional
+from typing import Optional
 from django.utils.translation import gettext as _
 from django.utils import translation
 from django.db import transaction
 from django.db.models import F
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
+from django.http import HttpResponse
 
 
 class BaseNodeView(APIView):
@@ -188,9 +187,16 @@ class CreateNodeView(BaseNodeView):
                 return self.format_response(error=_("Missing mandatory params"))
             
             # Validate that names contain all required languages
-            if 'English' not in names or 'Italian' not in names:
+            required_languages = ['English', 'Italian']
+            missing_languages = []
+            
+            for lang in required_languages:
+                if lang not in names or not names[lang] or not names[lang].strip():
+                    missing_languages.append(lang)
+            
+            if missing_languages:
                 return self.format_response(
-                    error=_("Names must be provided for both English and Italian")
+                    error=f"Names must be provided for all languages. Missing: {', '.join(missing_languages)}"
                 )
             
             # Get parent node
@@ -245,3 +251,207 @@ class CreateNodeView(BaseNodeView):
             import traceback
             traceback.print_exc()
             return self.format_response(error=_("An unexpected error occurred"))
+
+def test_auth_page(request):
+    """Serve the test HTML page"""
+    html_content = '''<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Node Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        input {
+            margin: 5px 0;
+            padding: 8px;
+            width: 300px;
+        }
+        button {
+            margin: 10px 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f4f4f4;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error { background-color: #ffe0e0; }
+        .success { background-color: #e0ffe0; }
+        .info { background-color: #e0e0ff; }
+    </style>
+</head>
+<body>
+    <h1>Node Creation Test (Protected Endpoint)</h1>
+    
+    <div class="section">
+        <h2>Step 1: Login to Get Token</h2>
+        <div>
+            <input type="text" id="username" placeholder="Username" value="admin"><br>
+            <input type="password" id="password" placeholder="Password"><br>
+            <button onclick="login()">Login</button>
+        </div>
+        <div id="loginResponse" class="response" style="display:none;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Step 2: Create New Node</h2>
+        <div>
+            <p><strong>Token:</strong> <input type="text" id="token" placeholder="Token will appear here after login" style="width: 400px;" readonly></p>
+            <p><strong>Parent Node ID:</strong> <input type="number" id="parentId" value="5" placeholder="e.g., 5 for Company"></p>
+            <p><strong>English Name:</strong> <input type="text" id="nameEnglish" placeholder="English Name" value="Human Resources"></p>
+            <p><strong>Italian Name:</strong> <input type="text" id="nameItalian" placeholder="Italian Name" value="Risorse Umane"></p>
+            
+            <button onclick="createNodeWithToken()">Create Node WITH Token</button>
+            <button onclick="createNodeWithoutToken()">Create Node WITHOUT Token (Should Fail)</button>
+        </div>
+        <div id="createResponse" class="response" style="display:none;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Available Parent Nodes</h2>
+        <div class="response info">
+            ID: 5 - Company (Azienda)
+            ID: 1 - Marketing
+            ID: 2 - Helpdesk (Supporto tecnico)
+            ID: 7 - Sales (Supporto Vendite)
+            ID: 10 - Developers (Sviluppatori)
+            ... and others
+        </div>
+    </div>
+
+    <script>
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const responseDiv = document.getElementById('loginResponse');
+            
+            try {
+                const response = await fetch('/api/auth/login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                responseDiv.style.display = 'block';
+                responseDiv.className = response.ok ? 'response success' : 'response error';
+                responseDiv.textContent = `Status: ${response.status}\\n${JSON.stringify(data, null, 2)}`;
+                
+                if (data.token) {
+                    document.getElementById('token').value = data.token;
+                }
+            } catch (error) {
+                responseDiv.style.display = 'block';
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function createNodeWithToken() {
+            const token = document.getElementById('token').value;
+            const parentId = document.getElementById('parentId').value;
+            const nameEnglish = document.getElementById('nameEnglish').value;
+            const nameItalian = document.getElementById('nameItalian').value;
+            const responseDiv = document.getElementById('createResponse');
+            
+            if (!token) {
+                responseDiv.style.display = 'block';
+                responseDiv.className = 'response error';
+                responseDiv.textContent = 'Please login first to get a token!';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/nodes/create/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Token ${token}`  // Include the token
+                    },
+                    body: JSON.stringify({
+                        parent_id: parseInt(parentId),
+                        names: {
+                            English: nameEnglish,
+                            Italian: nameItalian
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                responseDiv.style.display = 'block';
+                responseDiv.className = response.ok ? 'response success' : 'response error';
+                responseDiv.textContent = `Status: ${response.status}\\n${JSON.stringify(data, null, 2)}`;
+                
+                if (response.ok) {
+                    responseDiv.textContent += '\\n\\n SUCCESS! Node created with authentication.';
+                }
+            } catch (error) {
+                responseDiv.style.display = 'block';
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function createNodeWithoutToken() {
+            const parentId = document.getElementById('parentId').value;
+            const nameEnglish = document.getElementById('nameEnglish').value;
+            const nameItalian = document.getElementById('nameItalian').value;
+            const responseDiv = document.getElementById('createResponse');
+            
+            try {
+                const response = await fetch('/api/nodes/create/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                        // NO Authorization header - this should fail
+                    },
+                    body: JSON.stringify({
+                        parent_id: parseInt(parentId),
+                        names: {
+                            English: nameEnglish,
+                            Italian: nameItalian
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                responseDiv.style.display = 'block';
+                responseDiv.className = response.ok ? 'response success' : 'response error';
+                responseDiv.textContent = `Status: ${response.status}\\n${JSON.stringify(data, null, 2)}`;
+                
+                if (!response.ok) {
+                    responseDiv.textContent += '\\n\\n EXPECTED FAILURE: Cannot create node without authentication.';
+                }
+            } catch (error) {
+                responseDiv.style.display = 'block';
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>'''
+    return HttpResponse(html_content, content_type='text/html')

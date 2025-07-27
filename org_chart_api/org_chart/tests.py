@@ -348,4 +348,4 @@ class CreateNodeTest(TestCase):
         response = self.client.post(url, data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('must be provided for both', response.data['error'])
+        self.assertIn('Missing: Italian', response.data['error'])

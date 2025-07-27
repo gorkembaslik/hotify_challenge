@@ -24,7 +24,7 @@ A Django REST API for managing hierarchical organizational structures using the 
 
 ## Installation
 
-### 1. Clone the repository
+1. Clone the repository
 
 git clone <repository-url>
 cd org_chart_api
@@ -35,7 +35,6 @@ python -m venv venv
 
 # On Windows
 venv\Scripts\activate
-
 # On macOS/Linux
 source venv/bin/activate
 
@@ -44,6 +43,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 4. Configure database
+
 Create a .env file in the project root with your PostgreSQL credentials:
 
 DATABASE_NAME=org_chart_db
@@ -53,6 +53,7 @@ DATABASE_HOST=localhost
 DATABASE_PORT=5432
 
 5. Create database
+
 # Create the database in PostgreSQL
 psql -U postgres
 CREATE DATABASE org_chart_db
@@ -75,9 +76,19 @@ python manage.py runserver
 
 The API will be available at http://localhost:8000
 
-API Endpoints
-Authentication
-Login
+# API Endpoints
+
+## Authentication
+
+### Create a test user
+
+python manage.py shell
+
+from django.contrib.auth.models import User
+User.objects.create_user(username='admin', password='admin')
+exit()
+
+### Login
 URL: /api/auth/login/
 Method: POST
 Body:
@@ -94,7 +105,8 @@ json
     "username": "your_username",
     "email": "user@example.com"
 }
-Logout
+
+### Logout
 URL: /api/auth/logout/
 Method: POST
 Headers: Authorization: Token your_auth_token
@@ -103,7 +115,8 @@ json
 {
     "message": "Successfully logged out"
 }
-Node Operations
+
+# Node Operations
 1. List All Nodes
 URL: /api/nodes/?language={language}&page_num={page}&page_size={size}
 Method: GET
@@ -128,6 +141,7 @@ json
         }
     ]
 }
+
 2. Get Single Node
 URL: /api/nodes/{node_id}/?language={language}
 Method: GET
@@ -146,6 +160,7 @@ json
         }
     ]
 }
+
 3. Search Children
 URL: /api/nodes/{node_id}/children/?language={language}&search={keyword}&page_num={page}&page_size={size}
 Method: GET
@@ -167,6 +182,7 @@ json
         }
     ]
 }
+
 4. Create New Node (Requires Authentication)
 URL: /api/nodes/create/
 Method: POST
@@ -193,15 +209,16 @@ json
     "message": "Node created successfully"
 }
 
-Error Messages
+# Error Messages
 The API returns standardized error messages in the requested language:
 
-Error	English	Italian
+## Error    English     Italian
 Missing parameters	"Missing mandatory params"	"Parametri obbligatori mancanti"
 Node not found	"Not found"	"Non trovato"
 Invalid page number	"Invalid page number requested"	"Numero di pagina richiesto non valido"
 Invalid page size	"Invalid page size requested"	"Dimensione pagina richiesta non valida"
-Response Format
+
+## Response Format
 All API responses follow this structure:
 
 json
