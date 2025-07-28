@@ -88,33 +88,9 @@ from django.contrib.auth.models import User
 User.objects.create_user(username='admin', password='admin')
 exit()
 
-### Login
-URL: /api/auth/login/
-Method: POST
-Body:
-json
-{
-    "username": "your_username",
-    "password": "your_password"
-}
-Response:
-json
-{
-    "token": "your_auth_token",
-    "user_id": 1,
-    "username": "your_username",
-    "email": "user@example.com"
-}
+### Login / Logout
 
-### Logout
-URL: /api/auth/logout/
-Method: POST
-Headers: Authorization: Token your_auth_token
-Response:
-json
-{
-    "message": "Successfully logged out"
-}
+URL: http://localhost:8000/test-auth/
 
 # Node Operations
 1. List All Nodes
