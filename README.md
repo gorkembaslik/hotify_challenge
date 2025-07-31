@@ -52,9 +52,8 @@ DATABASE_PASSWORD=your_password
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
 
-5. Create database
+5. Create database in PostgreSQL
 
-# Create the database in PostgreSQL
 psql -U postgres
 CREATE DATABASE org_chart_db
 
@@ -80,21 +79,43 @@ The API will be available at http://localhost:8000
 
 ## Authentication
 
-### Create a test user
+### Login
+URL: /api/auth/login/
+Method: POST
+Body:
+json
+{
+    "username": "your_username",
+    "password": "your_password"
+}
+Response:
+json
+{
+    "token": "your_auth_token",
+    "user_id": 1,
+    "username": "your_username",
+    "email": "user@example.com"
+}
+cmd:
+curl -X POST http://localhost:8000/api/auth/login/ -H "Content-Type: application/json" -d "{\"username\": \"admin\", \"password\": \"admin\"}"
 
-python manage.py shell
+### Logout
+URL: /api/auth/logout/
+Method: POST
+Headers: Authorization: Token your_auth_token
+Response:
+json
+{
+    "message": "Successfully logged out"
+}
+cmd:
+curl -X POST http://localhost:8000/api/auth/logout/ -H "Authorization: Token {token}"
 
-from django.contrib.auth.models import User
-User.objects.create_user(username='admin', password='admin')
-exit()
+### Sample authentication browser test -> http://localhost:8000/test-auth
 
-### Login / Logout
-
-URL: http://localhost:8000/test-auth/
-
-# Node Operations
+## Node Operations
 1. List All Nodes
-URL: /api/nodes/?language={language}&page_num={page}&page_size={size}
+URL: http://localhost:8000/api/nodes/?language={language}&page_num={page}&page_size={size}
 Method: GET
 Parameters:
 language (required): "English" or "Italian"
@@ -119,7 +140,7 @@ json
 }
 
 2. Get Single Node
-URL: /api/nodes/{node_id}/?language={language}
+URL: http://localhost:8000/api/nodes/{node_id}/?language={language}
 Method: GET
 Parameters:
 node_id (required): The ID of the node
@@ -138,7 +159,7 @@ json
 }
 
 3. Search Children
-URL: /api/nodes/{node_id}/children/?language={language}&search={keyword}&page_num={page}&page_size={size}
+URL: http://localhost:8000/api/nodes/{node_id}/children/?language={language}&search={keyword}&page_num={page}&page_size={size}
 Method: GET
 Parameters:
 node_id (required): Parent node ID
@@ -184,6 +205,8 @@ json
     ],
     "message": "Node created successfully"
 }
+cmd:
+curl -X POST http://localhost:8000/api/nodes/create/ -H "Content-Type: application/json" -H "Authorization: Token {token}" -d "{\"parent_id\": \"{id}\", \"names\": {\"English\": \"{node_name_en}\", \"Italian\": \"{node_name_it}\"}}"
 
 # Error Messages
 The API returns standardized error messages in the requested language:
@@ -214,3 +237,8 @@ Authentication functionality
 Pagination
 Internationalization
 Node creation with nested set updates
+
+# Database Reset
+
+python manage.py migrate org_chart zero
+python manage.py migrate
